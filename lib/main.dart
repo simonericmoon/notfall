@@ -6,6 +6,7 @@ import 'dart:convert'; // For json decoding
 import 'package:geolocator/geolocator.dart';
 import 'dart:async';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:geocoding/geocoding.dart';
 
 Future<Map<String, dynamic>> loadConfig() async {
   final jsonString = await rootBundle.loadString('assets/config.json');
@@ -207,7 +208,14 @@ class _MapWidgetState extends State<MapWidget> {
     });
   }
 
-  void showAmenityDetails(String name, double lat, double lon, String amenity) {
+  void showAmenityDetails(
+      String name, double lat, double lon, String amenity) async {
+    // Reverse geocode the latitude and longitude to get the address
+    List<Placemark> placemarks = await placemarkFromCoordinates(lat, lon);
+    String address = placemarks.isNotEmpty
+        ? "${placemarks[0].street}, ${placemarks[0].locality}, ${placemarks[0].postalCode}, ${placemarks[0].country}"
+        : "Unknown address";
+
     // Fetch isochrones for the amenity and update the state
     fetchIsochrones(lat, lon).then((coordinates) {
       setState(() {
@@ -222,7 +230,8 @@ class _MapWidgetState extends State<MapWidget> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: Text(name),
-          content: Text('Location: $lat, $lon\nType: $amenity'),
+          content:
+              Text('Address: $address\nType: $amenity'), // Display address here
           actions: <Widget>[
             TextButton(
               child: Text('Close'),
