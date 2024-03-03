@@ -15,6 +15,37 @@ Future<Map<String, dynamic>> loadConfig() async {
 typedef OnAmenityTap = void Function(
     String name, double lat, double lon, String amenity);
 
+Future<List<LatLng>> fetchRoute(
+    double startLat, double startLon, double endLat, double endLon) async {
+  final config = await loadConfig();
+  final String apiKey = config['api_key'];
+  const String apiUrl =
+      'https://api.openrouteservice.org/v2/directions/driving-car/geojson';
+
+  final response = await http.post(
+    Uri.parse(apiUrl),
+    headers: {
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Authorization': apiKey,
+    },
+    body: jsonEncode({
+      "coordinates": [
+        [startLon, startLat],
+        [endLon, endLat]
+      ],
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    final data = json.decode(response.body);
+    final List<dynamic> coordinates =
+        data['features'][0]['geometry']['coordinates'];
+    return coordinates.map((coord) => LatLng(coord[1], coord[0])).toList();
+  } else {
+    throw Exception('Failed to load route: ${response.body}');
+  }
+}
+
 Future<List<dynamic>> fetchIsochrones(double lat, double lon) async {
   final config = await loadConfig();
   final String apiKey = config['api_key'];
@@ -132,6 +163,7 @@ class _MapWidgetState extends State<MapWidget> {
   List<Marker> apiMarkers = [];
   List<LatLng> userIsochronePoints = [];
   List<LatLng> amenityIsochronePoints = [];
+  Polyline? routePolyline;
 
   @override
   void initState() {
@@ -198,6 +230,27 @@ class _MapWidgetState extends State<MapWidget> {
                 Navigator.of(context).pop();
               },
             ),
+            TextButton(
+              child: Text('Route!'),
+              onPressed: () async {
+                Navigator.of(context).pop(); // Close the dialog
+                Position userPosition = await Geolocator.getCurrentPosition(
+                    desiredAccuracy: LocationAccuracy.high);
+                fetchRoute(
+                        userPosition.latitude, userPosition.longitude, lat, lon)
+                    .then((routePoints) {
+                  setState(() {
+                    // Assuming you have a state variable to hold the route polyline
+                    // Add or update the route polyline here
+                    routePolyline = Polyline(
+                      points: routePoints,
+                      strokeWidth: 5.0,
+                      color: Colors.blue,
+                    );
+                  });
+                });
+              },
+            ),
           ],
         );
       },
@@ -241,6 +294,9 @@ class _MapWidgetState extends State<MapWidget> {
               borderStrokeWidth: 2.0)
         ],
       ));
+    }
+    if (routePolyline != null) {
+      mapLayers.add(PolylineLayer(polylines: [routePolyline!]));
     }
 
     return FutureBuilder<List<Marker>>(
