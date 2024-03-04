@@ -144,10 +144,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: Scaffold(
-        appBar: AppBar(title: Text('Berlin Map')),
-        body: MapWidget(),
-      ),
+      home: HomeScreen(), // Updated to use HomeScreen
     );
   }
 }
@@ -268,62 +265,207 @@ class _MapWidgetState extends State<MapWidget> {
 
   @override
   Widget build(BuildContext context) {
-    List<Widget> mapLayers = [
-      TileLayer(
-        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        userAgentPackageName: 'com.example.app',
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Map'), // Provides a title for the AppBar
       ),
-      MarkerLayer(markers: apiMarkers),
-    ];
+      drawer: AppDrawer(), // Includes the navigation drawer
+      body: FutureBuilder<List<Marker>>(
+        future: futureMarkers,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            List<Widget> mapLayers = [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.example.app',
+              ),
+              MarkerLayer(markers: apiMarkers),
+            ];
 
-    if (userLocationMarker != null) {
-      mapLayers.add(MarkerLayer(markers: [userLocationMarker!]));
-    }
+            if (userLocationMarker != null) {
+              mapLayers.add(MarkerLayer(markers: [userLocationMarker!]));
+            }
 
-    // Add isochrone layers for user and selected amenity
-    if (userIsochronePoints.isNotEmpty) {
-      mapLayers.add(PolygonLayer(
-        polygons: [
-          Polygon(
-              points: userIsochronePoints,
-              color: Colors.green.withOpacity(0.3),
-              borderColor: Colors.green,
-              borderStrokeWidth: 2.0)
-        ],
-      ));
-    }
+            // Add isochrone layers for user and selected amenity
+            if (userIsochronePoints.isNotEmpty) {
+              mapLayers.add(PolygonLayer(
+                polygons: [
+                  Polygon(
+                    points: userIsochronePoints,
+                    color: Colors.green.withOpacity(0.3),
+                    borderColor: Colors.green,
+                    borderStrokeWidth: 2.0,
+                  ),
+                ],
+              ));
+            }
 
-    if (amenityIsochronePoints.isNotEmpty) {
-      mapLayers.add(PolygonLayer(
-        polygons: [
-          Polygon(
-              points: amenityIsochronePoints,
-              color: Colors.red.withOpacity(0.3),
-              borderColor: Colors.red,
-              borderStrokeWidth: 2.0)
-        ],
-      ));
-    }
-    if (routePolyline != null) {
-      mapLayers.add(PolylineLayer(polylines: [routePolyline!]));
-    }
+            if (amenityIsochronePoints.isNotEmpty) {
+              mapLayers.add(PolygonLayer(
+                polygons: [
+                  Polygon(
+                    points: amenityIsochronePoints,
+                    color: Colors.red.withOpacity(0.3),
+                    borderColor: Colors.red,
+                    borderStrokeWidth: 2.0,
+                  ),
+                ],
+              ));
+            }
 
-    return FutureBuilder<List<Marker>>(
-      future: futureMarkers,
-      builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          return FlutterMap(
-            options: MapOptions(
-              center: LatLng(52.5200, 13.4050), // Berlin coordinates
-              zoom: 13.0,
+            if (routePolyline != null) {
+              mapLayers.add(PolylineLayer(polylines: [routePolyline!]));
+            }
+
+            return FlutterMap(
+              options: MapOptions(
+                center: LatLng(52.5200, 13.4050), // Centered on Berlin
+                zoom: 13.0,
+              ),
+              children: mapLayers,
+            );
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          }
+          return Center(child: CircularProgressIndicator());
+        },
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Home'),
+      ),
+      drawer: AppDrawer(), // We will create this next
+      body: Center(
+        child: Text('Welcome to the Berlin Map App!'),
+      ),
+    );
+  }
+}
+
+class AppDrawer extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: ListView(
+        padding: EdgeInsets.zero,
+        children: <Widget>[
+          const DrawerHeader(
+            decoration: BoxDecoration(
+              color: Colors.blue,
             ),
-            children: mapLayers,
-          );
-        } else if (snapshot.hasError) {
-          return Text("${snapshot.error}");
-        }
-        return CircularProgressIndicator();
-      },
+            child: Text(
+              'Navigation',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+              ),
+            ),
+          ),
+          ListTile(
+            leading: Icon(Icons.map),
+            title: Text('Map'),
+            onTap: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => MapWidget()));
+            },
+          ),
+
+          ListTile(
+            // New ListTile for the About page
+            leading: Icon(Icons.info),
+            title: Text('About'),
+            onTap: () {
+              Navigator.pop(context); // Close the drawer
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => AboutPage()));
+            },
+          ),
+          // Add more ListTiles for other navigation options
+        ],
+      ),
+    );
+  }
+}
+
+class AboutPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('About'),
+      ),
+      body: SingleChildScrollView(
+        // Use SingleChildScrollView to avoid overflow on smaller screens
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Center(child: ImageWidget()), // Custom widget for the image
+              SizedBox(height: 20), // Add space between image and headline
+              HeadlineText('Our Mission'), // Custom widget for headlines
+              RegularTextBlock(// Custom widget for regular text
+                  'We aim to provide the best map navigation experience in Berlin, '
+                  'offering real-time updates, detailed routes, and comprehensive coverage of amenities.'),
+              SizedBox(height: 10),
+              HeadlineText('Features'),
+              RegularTextBlock(
+                  'Explore detailed maps, find local amenities, and calculate routes efficiently and view isochrones of the amenities. The routing and isochrone data is provided by OpenRouteService, and the amenity data is provided by OpenStreetMap. We aim to provide a seamless experience for all users. The API profiles are 5 minute area with a car and the car routing profile.'),
+              // Add more text blocks or other content as needed
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ImageWidget extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Example image widget
+    return Image.asset(
+      'assets/images/dalle.webp',
+      width: 300,
+      height: 300,
+      fit: BoxFit.cover,
+    );
+  }
+}
+
+class HeadlineText extends StatelessWidget {
+  final String text;
+  HeadlineText(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .headline6, // Using theme for consistent styling
+    );
+  }
+}
+
+class RegularTextBlock extends StatelessWidget {
+  final String text;
+  RegularTextBlock(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context)
+          .textTheme
+          .bodyText2, // Using theme for consistent styling
     );
   }
 }
