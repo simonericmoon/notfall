@@ -1,0 +1,6 @@
+{
+    "api_key": "YourOpenRouteServiceAPIKey" // Get your API key from https://openrouteservice.org/sign-up/
+  }
+  
+// Rename File to config.json and remove the comments
+```
